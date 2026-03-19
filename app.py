@@ -31,7 +31,7 @@ with st.sidebar:
         cursed = True
 
     st.header("Simulation")
-    n_trials = st.slider("Number of trials", 1_000, 100_000, 10_000, step=1_000)
+    n_trials = st.slider("Number of trials", 100_000, 1_000_000, 100_000, step=100_000)
 
     st.caption(
         "Postures stack freely. Advantage/Disadvantage sets the mark "
@@ -100,8 +100,8 @@ chance_success = np.mean(success) * 100
 chance_complication = np.mean(complication) * 100
 
 col1, col2 = st.columns(2)
-col1.metric("Chance of Success", f"{chance_success:.1f}%")
-col2.metric("Chance of Complication", f"{chance_complication:.1f}%")
+col1.metric("Chance of Success", f"{chance_success:.2f}%")
+col2.metric("Chance of Complication", f"{chance_complication:.2f}%")
 
 # ── Primary chart: DoS distribution ──────────────────────────────────────────
 dos_min, dos_max = int(dos.min()), int(dos.max())
@@ -115,7 +115,7 @@ fig_dos = go.Figure(
         x=centres,
         y=counts / n_trials * 100,
         marker_color=colours,
-        hovertemplate="DoS %{x}: %{y:.1f}%<extra></extra>",
+        hovertemplate="DoS %{x}: %{y:.2f}%<extra></extra>",
     )
 )
 fig_dos.update_layout(
@@ -144,10 +144,10 @@ fig_comp = go.Figure(
         y=[success_no_comp, success_with_comp, failure_no_comp, failure_with_comp],
         marker_color=["#2ca02c", "#ff7f0e", "#d62728", "#9467bd"],
         text=[
-            f"{success_no_comp:.1f}%",
-            f"{success_with_comp:.1f}%",
-            f"{failure_no_comp:.1f}%",
-            f"{failure_with_comp:.1f}%",
+            f"{success_no_comp:.2f}%",
+            f"{success_with_comp:.2f}%",
+            f"{failure_no_comp:.2f}%",
+            f"{failure_with_comp:.2f}%",
         ],
         textposition="auto",
     )
