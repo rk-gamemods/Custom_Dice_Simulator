@@ -19,6 +19,7 @@ COMPLICATION_METHODS = {
     "Proportional: 1s >= half Marks (round up)": "proportional",
     "Split: on fail 1s > Marks, on pass 4s > Marks": "split",
     "Split (DoS): on fail 1s > Marks, on pass 4s > DoS": "split_dos",
+    "Split (Misses): on fail 1s > Marks, on pass 4s > non-mark dice": "split_misses",
 }
 
 
@@ -50,6 +51,10 @@ def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng,
         passed = m >= difficulty
         dos = m - difficulty
         comp = np.where(passed, fours > dos, ones > m)
+    elif comp_method == "split_misses":
+        passed = m >= difficulty
+        non_marks = np.sum(rolls < thresh, axis=1)
+        comp = np.where(passed, fours > non_marks, ones > m)
     elif comp_method == "standard_loose":
         comp = ones >= m
     else:
@@ -132,6 +137,17 @@ with st.sidebar:
             "**On success:** Complication if 4s outnumber your Degrees of Success (marks minus DR). "
             "A narrow win loaded with 4s will trigger, but a dominant success won't.\n\n"
             "**Overall:** Tight victories feel messy, dominant victories feel clean, failures punish bad luck."
+        ),
+        "split_misses": (
+            "Different rules for pass vs fail.\n\n"
+            "**On failure:** Complication if 1s outnumber marks (same as Standard).\n\n"
+            "**On success:** Complication if 4s outnumber the dice that missed the threshold "
+            "(e.g. rolls of 1/2/3 under Normal). How often this fires depends heavily on your advantage level — "
+            "with Disadvantage most dice miss so 4s rarely outnumber them, but with Double Advantage only 1s miss, "
+            "so a handful of 4s can easily outnumber the few misses.\n\n"
+            "**Overall:** Success complications are tied to advantage level. Highly advantaged characters "
+            "see more success complications from their weak hits; disadvantaged characters almost never do. "
+            "Failures behave the same as Standard."
         ),
     }
     st.markdown(
