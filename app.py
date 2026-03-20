@@ -12,11 +12,12 @@ COMPARE_TRIALS = 50_000
 
 
 COMPLICATION_METHODS = {
-    "Standard: 1s > Marks": "standard",
+    "Standard (strict): 1s > Marks": "standard",
+    "Standard (loose): 1s >= Marks": "standard_loose",
     "Broad (strict): 1s + 4s > Marks": "broad_strict",
     "Broad (loose): 1s + 4s >= Marks": "broad_loose",
     "Proportional: 1s >= half Marks (round up)": "proportional",
-    "Split: on fail 1s > Marks, on pass 4s > Marks": "split",
+    "Split: on fail 1s > Marks, on pass 4s > DoS": "split",
 }
 
 
@@ -43,7 +44,10 @@ def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng,
         comp = ones >= half_marks
     elif comp_method == "split":
         passed = m >= difficulty
-        comp = np.where(passed, fours > m, ones > m)
+        dos = m - difficulty
+        comp = np.where(passed, fours > dos, ones > m)
+    elif comp_method == "standard_loose":
+        comp = ones >= m
     else:
         comp = ones > m
     return m, comp
