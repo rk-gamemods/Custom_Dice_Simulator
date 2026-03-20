@@ -17,7 +17,8 @@ COMPLICATION_METHODS = {
     "Broad (strict): 1s + 4s > Marks": "broad_strict",
     "Broad (loose): 1s + 4s >= Marks": "broad_loose",
     "Proportional: 1s >= half Marks (round up)": "proportional",
-    "Split: on fail 1s > Marks, on pass 4s > DoS": "split",
+    "Split: on fail 1s > Marks, on pass 4s > Marks": "split",
+    "Split (DoS): on fail 1s > Marks, on pass 4s > DoS": "split_dos",
 }
 
 
@@ -43,6 +44,9 @@ def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng,
         half_marks = np.ceil(np.maximum(m, 0) / 2).astype(np.int64)
         comp = ones >= half_marks
     elif comp_method == "split":
+        passed = m >= difficulty
+        comp = np.where(passed, fours > m, ones > m)
+    elif comp_method == "split_dos":
         passed = m >= difficulty
         dos = m - difficulty
         comp = np.where(passed, fours > dos, ones > m)
