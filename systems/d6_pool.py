@@ -128,7 +128,7 @@ COMPARE_TRIALS = 50_000
 # ── Engine ───────────────────────────────────────────────────────────────────
 def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng,
              comp_method="standard", difficulty=0):
-    """Run a simulation and return (marks, complication_bool) arrays."""
+    """Run a single pool-size simulation. Returns (marks, complication) 1-D arrays."""
     rolls = rng.integers(1, 7, size=(trials, n_dice))
     if is_safe:
         mask = rolls == 1
@@ -140,51 +140,85 @@ def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng,
         m -= np.sum(rolls == 1, axis=1)
     ones = np.sum(rolls == 1, axis=1)
     fours = np.sum(rolls == 4, axis=1)
+    non_marks = np.sum(rolls < thresh, axis=1)
+    comp = _resolve_complication(comp_method, m, ones, fours, non_marks, difficulty)
+    return m, comp
+
+
+def _resolve_complication(comp_method, m, cum_ones, cum_fours, cum_non_marks, difficulty):
+    """Apply complication logic. All inputs are (trials, max_pool) shaped."""
     if comp_method == "broad_strict":
-        comp = (ones + fours) > m
+        return (cum_ones + cum_fours) > m
     elif comp_method == "broad_loose":
-        comp = (ones + fours) >= m
+        return (cum_ones + cum_fours) >= m
     elif comp_method == "proportional":
         half_marks = np.ceil(np.maximum(m, 0) / 2).astype(np.int64)
-        comp = ones >= half_marks
+        return cum_ones >= half_marks
     elif comp_method == "split":
         passed = m >= difficulty
-        comp = np.where(passed, fours > m, ones > m)
+        return np.where(passed, cum_fours > m, cum_ones > m)
     elif comp_method == "split_dos":
         passed = m >= difficulty
-        dos = m - difficulty
-        comp = np.where(passed, fours > dos, ones > m)
+        return np.where(passed, cum_fours > (m - difficulty), cum_ones > m)
     elif comp_method == "split_misses":
         passed = m >= difficulty
-        non_marks = np.sum(rolls < thresh, axis=1)
-        comp = np.where(passed, fours > non_marks, ones > m)
+        return np.where(passed, cum_fours > cum_non_marks, cum_ones > m)
     elif comp_method == "standard_loose":
-        comp = ones >= m
+        return cum_ones >= m
     else:
-        comp = ones > m
+        return cum_ones > m
+
+
+def simulate_all_pools(thresh, is_safe, is_blessed, is_cursed, trials, rng,
+                       comp_method="standard", difficulty=0):
+    """Simulate pool sizes 1-30 in a single vectorised pass.
+
+    Rolls one (trials, 30) matrix and uses cumulative sums to derive
+    marks and complications for every pool size simultaneously.
+
+    Returns:
+        marks: (trials, 30) — marks[:, n-1] = marks for pool size n
+        comp:  (trials, 30) — complication bool for each pool size
+    """
+    max_pool = len(POOL_RANGE)
+    rolls = rng.integers(1, 7, size=(trials, max_pool))
+    if is_safe:
+        mask = rolls == 1
+        rolls = np.where(mask, rng.integers(1, 7, size=(trials, max_pool)), rolls)
+
+    # Cumulative counts along the pool axis
+    cum_hits = np.cumsum(rolls >= thresh, axis=1).astype(np.int64)
+    cum_ones = np.cumsum(rolls == 1, axis=1)
+    cum_fours = np.cumsum(rolls == 4, axis=1)
+    cum_non_marks = np.cumsum(rolls < thresh, axis=1)
+
+    m = cum_hits.copy()
+    if is_blessed:
+        m += np.cumsum(rolls == 6, axis=1)
+    if is_cursed:
+        m -= cum_ones
+
+    comp = _resolve_complication(comp_method, m, cum_ones, cum_fours, cum_non_marks, difficulty)
     return m, comp
 
 
 def success_curve(thresh, is_safe, is_blessed, is_cursed, dr, comp_method, rng):
     """Return (success%, complication%) arrays for pool sizes 1-30."""
-    succ = np.empty(len(POOL_RANGE))
-    comp = np.empty(len(POOL_RANGE))
-    for i, n in enumerate(POOL_RANGE):
-        m, cc = simulate(n, thresh, is_safe, is_blessed, is_cursed,
-                         COMPARE_TRIALS, rng, comp_method, dr)
-        succ[i] = np.mean((m - dr) >= 0) * 100
-        comp[i] = np.mean(cc) * 100
+    m, cc = simulate_all_pools(
+        thresh, is_safe, is_blessed, is_cursed, COMPARE_TRIALS, rng, comp_method, dr,
+    )
+    succ = np.mean((m - dr) >= 0, axis=0) * 100
+    comp = np.mean(cc, axis=0) * 100
     return succ, comp
 
 
 def heatmap_data(thresh, is_safe, is_blessed, is_cursed, comp_method, rng):
     """Return a 2D array of success% indexed by [DR, pool_size]."""
-    data = np.empty((len(DR_RANGE), len(POOL_RANGE)))
-    for j, n in enumerate(POOL_RANGE):
-        m, _ = simulate(n, thresh, is_safe, is_blessed, is_cursed,
-                        COMPARE_TRIALS, rng, comp_method, 0)
-        for i, d in enumerate(DR_RANGE):
-            data[i, j] = np.mean(m >= d) * 100
+    m, _ = simulate_all_pools(
+        thresh, is_safe, is_blessed, is_cursed, COMPARE_TRIALS, rng, comp_method, 0,
+    )
+    # Broadcast: m is (trials, 30), DR_RANGE is (21,) → compare via (21, trials, 30)
+    data = np.mean(m[np.newaxis, :, :] >= DR_RANGE[:, np.newaxis, np.newaxis], axis=1) * 100
     return data
 
 
