@@ -84,9 +84,20 @@ with st.sidebar:
     comp_label = st.selectbox(
         "Complication Method",
         list(COMPLICATION_METHODS.keys()),
-        help="Standard: 1s > Marks. Broad: (1s + 4s) > Marks — complications trigger more often and spread across success/failure.",
+        help="Determines what triggers a Complication on a roll. Different methods change how often complications appear and how they relate to your success or failure.",
     )
     comp_method = COMPLICATION_METHODS[comp_label]
+
+    COMP_DESCRIPTIONS = {
+        "standard": "A complication happens when you roll more 1s than total marks. With bigger dice pools and strong rolls, this becomes very rare.",
+        "standard_loose": "Like Standard, but a complication also triggers when 1s are equal to your marks — not just when they exceed them. Slightly more punishing.",
+        "broad_strict": "Counts both 1s and 4s against you. If that combined total is more than your marks, you get a complication. Since 4s are your weakest successful dice, this fires much more often.",
+        "broad_loose": "Same as Broad, but ties count too. If 1s plus 4s equal your marks, that's enough for a complication.",
+        "proportional": "A complication triggers when your 1s reach at least half your marks (rounded up). Example: you scored 6 marks, so 3 or more 1s means a complication. Easy to calculate at the table — just halve your marks.",
+        "split": "Uses different triggers depending on outcome. If you failed, it checks whether 1s outnumber your marks. If you passed, it checks whether 4s outnumber your marks. Note: since 4s already count as marks, the success side is very hard to trigger.",
+        "split_dos": "Like Split, but on a success it compares your 4s against your Degrees of Success (marks minus the DR) instead of total marks. A narrow win loaded with 4s will trigger a complication, but a dominant success won't.",
+    }
+    st.info(COMP_DESCRIPTIONS[comp_method])
 
     st.header("Simulation")
     n_trials = st.slider("Number of trials", 100_000, 1_000_000, 100_000, step=100_000)
