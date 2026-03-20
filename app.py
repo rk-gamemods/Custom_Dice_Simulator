@@ -84,7 +84,24 @@ with st.sidebar:
     comp_label = st.selectbox(
         "Complication Method",
         list(COMPLICATION_METHODS.keys()),
-        help="Standard: 1s > Marks. Broad: (1s + 4s) > Marks — complications trigger more often and spread across success/failure.",
+        help=(
+            "How complications are triggered:\n\n"
+            "**Standard (strict):** You get a complication when you roll more 1s than marks. "
+            "Rare at high pool sizes.\n\n"
+            "**Standard (loose):** Same, but ties also count — rolling 1s *equal to* your marks triggers it too.\n\n"
+            "**Broad (strict):** Counts both 1s and 4s together. If that total exceeds your marks, complication. "
+            "Much more common since 4s are weak hits being counted against you.\n\n"
+            "**Broad (loose):** Same as Broad, but ties also count.\n\n"
+            "**Proportional:** Complication if your 1s reach at least half your marks (rounded up). "
+            "Example: 6 marks means 3+ ones triggers it. Easy table math — just halve your marks.\n\n"
+            "**Split:** Different triggers for pass vs fail. "
+            "If you failed, 1s > marks = complication (bad luck piling on). "
+            "If you passed, 4s > marks = complication (won on weak hits). "
+            "Note: 4s are always a subset of marks, so the success side almost never fires.\n\n"
+            "**Split (DoS):** Like Split, but on a pass it checks 4s against your Degrees of Success "
+            "(marks minus DR) instead of total marks. A tight win with lots of 4s will trigger, "
+            "but a dominant win won't."
+        ),
     )
     comp_method = COMPLICATION_METHODS[comp_label]
 
