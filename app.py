@@ -12,13 +12,15 @@ COMPARE_TRIALS = 50_000
 
 
 COMPLICATION_METHODS = {
-    "Standard (1s > Marks)": "standard",
-    "Broad (1s + 4s > Marks)": "broad",
+    "Standard: 1s > Marks": "standard",
+    "Broad (strict): 1s + 4s > Marks": "broad_strict",
+    "Broad (loose): 1s + 4s >= Marks": "broad_loose",
+    "Proportional: 1s >= half Marks (round up)": "proportional",
 }
 
 
 def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng, comp_method="standard"):
-    """Run a single simulation config and return (marks, complication_count) arrays."""
+    """Run a single simulation config and return (marks, complication) arrays."""
     rolls = rng.integers(1, 7, size=(trials, n_dice))
     if is_safe:
         mask = rolls == 1
@@ -28,11 +30,17 @@ def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng, comp_m
         m += np.sum(rolls == 6, axis=1)
     if is_cursed:
         m -= np.sum(rolls == 1, axis=1)
-    if comp_method == "broad":
-        comp_count = np.sum((rolls == 1) | (rolls == 4), axis=1)
+    ones = np.sum(rolls == 1, axis=1)
+    if comp_method == "broad_strict":
+        comp = np.sum((rolls == 1) | (rolls == 4), axis=1) > m
+    elif comp_method == "broad_loose":
+        comp = np.sum((rolls == 1) | (rolls == 4), axis=1) >= m
+    elif comp_method == "proportional":
+        half_marks = np.ceil(np.maximum(m, 0) / 2).astype(np.int64)
+        comp = ones >= half_marks
     else:
-        comp_count = np.sum(rolls == 1, axis=1)
-    return m, comp_count
+        comp = ones > m
+    return m, comp
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -102,8 +110,7 @@ st.subheader(f"{pool_size}d6 {posture_summary} vs DR {dr}")
 
 # ── Simulation (vectorised with NumPy) ───────────────────────────────────────
 rng = np.random.default_rng()
-marks, comp_count = simulate(pool_size, threshold, safe, blessed, cursed, n_trials, rng, comp_method)
-complication = comp_count > marks
+marks, complication = simulate(pool_size, threshold, safe, blessed, cursed, n_trials, rng, comp_method)
 
 # Degrees of Success (positive) / Failure (negative)
 dos = marks - dr
@@ -211,7 +218,7 @@ def success_curve(thresh, is_safe, is_blessed, is_cursed):
     for i, n in enumerate(POOL_RANGE):
         m, cc = simulate(n, thresh, is_safe, is_blessed, is_cursed, COMPARE_TRIALS, comp_rng, comp_method)
         succ[i] = np.mean((m - dr) >= 0) * 100
-        comp[i] = np.mean(cc > m) * 100
+        comp[i] = np.mean(cc) * 100
     return succ, comp
 
 
