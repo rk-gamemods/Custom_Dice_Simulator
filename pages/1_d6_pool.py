@@ -5,15 +5,11 @@ from systems import d6_pool
 from shared import INFO_CSS, render_results
 import charts
 
-st.set_page_config(page_title="D6 Pool Simulator", page_icon="\U0001F3B2", layout="wide")
 st.title("\U0001F3B2 D6 Dice Pool Simulator")
 st.markdown(INFO_CSS, unsafe_allow_html=True)
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.page_link("app.py", label="Home")
-    st.page_link("pages/2_d10_pool.py", label="D10 Pool")
-    st.divider()
     st.header("D6 Pool Settings")
     pool_size = st.slider("Dice Pool Size", 1, 30, 6)
     dr = st.slider("Difficulty Rating (DR)", 0, 20, 3)
