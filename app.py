@@ -89,15 +89,50 @@ with st.sidebar:
     comp_method = COMPLICATION_METHODS[comp_label]
 
     COMP_DESCRIPTIONS = {
-        "standard": "A complication happens when you roll more 1s than total marks. With bigger dice pools and strong rolls, this becomes very rare.",
-        "standard_loose": "Like Standard, but a complication also triggers when 1s are equal to your marks — not just when they exceed them. Slightly more punishing.",
-        "broad_strict": "Counts both 1s and 4s against you. If that combined total is more than your marks, you get a complication. Since 4s are your weakest successful dice, this fires much more often.",
-        "broad_loose": "Same as Broad, but ties count too. If 1s plus 4s equal your marks, that's enough for a complication.",
-        "proportional": "A complication triggers when your 1s reach at least half your marks (rounded up). Example: you scored 6 marks, so 3 or more 1s means a complication. Easy to calculate at the table — just halve your marks.",
-        "split": "Uses different triggers depending on outcome. If you failed, it checks whether 1s outnumber your marks. If you passed, it checks whether 4s outnumber your marks. Note: since 4s already count as marks, the success side is very hard to trigger.",
-        "split_dos": "Like Split, but on a success it compares your 4s against your Degrees of Success (marks minus the DR) instead of total marks. A narrow win loaded with 4s will trigger a complication, but a dominant success won't.",
+        "standard": (
+            "Complication if you roll more 1s than marks. "
+            "On failure: very likely — few marks means even a couple 1s overwhelm them. "
+            "On success: rare — you need a lot of marks to succeed, so 1s almost never outnumber them. "
+            "Overall: complications mostly pile onto failures; successes are clean. Becomes very safe with large pools."
+        ),
+        "standard_loose": (
+            "Complication if 1s are equal to or greater than marks. "
+            "On failure: very likely — ties now count, so even matching your few marks triggers it. "
+            "On success: uncommon but possible — a tight success where 1s match marks will complicate. "
+            "Overall: slightly more punishing than Standard across the board, especially on marginal rolls."
+        ),
+        "broad_strict": (
+            "Counts both 1s and 4s together. Complication if that total exceeds your marks. "
+            "On failure: almost guaranteed — 4s and 1s together easily outnumber your few marks. "
+            "On success: noticeably more common — 4s are your weakest hits, and they count against you here. "
+            "Overall: complications are frequent at all skill levels. Even strong rollers face them regularly."
+        ),
+        "broad_loose": (
+            "Counts both 1s and 4s together. Complication if that total equals or exceeds your marks. "
+            "On failure: nearly automatic. "
+            "On success: common — any roll heavy on 4s and 1s relative to marks triggers it. "
+            "Overall: the most aggressive method. Complications are a constant presence."
+        ),
+        "proportional": (
+            "Complication if your 1s reach at least half your marks (rounded up). "
+            "On failure: likely — few marks means even one or two 1s can hit the threshold. "
+            "On success: scales down — more marks raises the bar (6 marks needs 3+ ones). "
+            "Overall: complications fade as proficiency grows. Easy table math — just halve your marks."
+        ),
+        "split": (
+            "Different rules for pass vs fail. On failure: complication if 1s outnumber marks (same as Standard). "
+            "On success: complication if 4s outnumber marks. Since every 4 already counts as a mark, "
+            "4s can never exceed total marks — so success complications essentially never happen. "
+            "Overall: failures get complicated, successes are always clean."
+        ),
+        "split_dos": (
+            "Different rules for pass vs fail. On failure: complication if 1s outnumber marks (same as Standard). "
+            "On success: complication if 4s outnumber your Degrees of Success (marks minus DR). "
+            "A narrow win loaded with 4s will trigger, but a dominant success won't. "
+            "Overall: tight victories feel messy, dominant victories feel clean, failures punish bad luck."
+        ),
     }
-    st.info(COMP_DESCRIPTIONS[comp_method])
+    st.caption(COMP_DESCRIPTIONS[comp_method])
 
     st.header("Simulation")
     n_trials = st.slider("Number of trials", 100_000, 1_000_000, 100_000, step=100_000)
