@@ -11,8 +11,14 @@ POOL_RANGE = np.arange(1, 31)
 COMPARE_TRIALS = 50_000
 
 
-def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng):
-    """Run a single simulation config and return (marks, ones_count) arrays."""
+COMPLICATION_METHODS = {
+    "Standard (1s > Marks)": "standard",
+    "Broad (1s + 4s > Marks)": "broad",
+}
+
+
+def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng, comp_method="standard"):
+    """Run a single simulation config and return (marks, complication_count) arrays."""
     rolls = rng.integers(1, 7, size=(trials, n_dice))
     if is_safe:
         mask = rolls == 1
@@ -22,8 +28,11 @@ def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng):
         m += np.sum(rolls == 6, axis=1)
     if is_cursed:
         m -= np.sum(rolls == 1, axis=1)
-    ones = np.sum(rolls == 1, axis=1)
-    return m, ones
+    if comp_method == "broad":
+        comp_count = np.sum((rolls == 1) | (rolls == 4), axis=1)
+    else:
+        comp_count = np.sum(rolls == 1, axis=1)
+    return m, comp_count
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -48,6 +57,14 @@ with st.sidebar:
     if unnatural:
         blessed = True
         cursed = True
+
+    st.header("Calculation Variants")
+    comp_label = st.selectbox(
+        "Complication Method",
+        list(COMPLICATION_METHODS.keys()),
+        help="Standard: 1s > Marks. Broad: (1s + 4s) > Marks — complications trigger more often and spread across success/failure.",
+    )
+    comp_method = COMPLICATION_METHODS[comp_label]
 
     st.header("Simulation")
     n_trials = st.slider("Number of trials", 100_000, 1_000_000, 100_000, step=100_000)
@@ -85,8 +102,8 @@ st.subheader(f"{pool_size}d6 {posture_summary} vs DR {dr}")
 
 # ── Simulation (vectorised with NumPy) ───────────────────────────────────────
 rng = np.random.default_rng()
-marks, ones_count = simulate(pool_size, threshold, safe, blessed, cursed, n_trials, rng)
-complication = ones_count > marks
+marks, comp_count = simulate(pool_size, threshold, safe, blessed, cursed, n_trials, rng, comp_method)
+complication = comp_count > marks
 
 # Degrees of Success (positive) / Failure (negative)
 dos = marks - dr
@@ -192,9 +209,9 @@ def success_curve(thresh, is_safe, is_blessed, is_cursed):
     succ = np.empty(len(POOL_RANGE))
     comp = np.empty(len(POOL_RANGE))
     for i, n in enumerate(POOL_RANGE):
-        m, ones = simulate(n, thresh, is_safe, is_blessed, is_cursed, COMPARE_TRIALS, comp_rng)
+        m, cc = simulate(n, thresh, is_safe, is_blessed, is_cursed, COMPARE_TRIALS, comp_rng, comp_method)
         succ[i] = np.mean((m - dr) >= 0) * 100
-        comp[i] = np.mean(ones > m) * 100
+        comp[i] = np.mean(cc > m) * 100
     return succ, comp
 
 
@@ -294,7 +311,7 @@ DR_RANGE = np.arange(0, 21)
 heat_data = np.empty((len(DR_RANGE), len(POOL_RANGE)))
 
 for j, n in enumerate(POOL_RANGE):
-    m, _ = simulate(n, threshold, safe, blessed, cursed, COMPARE_TRIALS, comp_rng)
+    m, _ = simulate(n, threshold, safe, blessed, cursed, COMPARE_TRIALS, comp_rng, comp_method)
     for i, d in enumerate(DR_RANGE):
         heat_data[i, j] = np.mean(m >= d) * 100
 
