@@ -16,10 +16,12 @@ COMPLICATION_METHODS = {
     "Broad (strict): 1s + 4s > Marks": "broad_strict",
     "Broad (loose): 1s + 4s >= Marks": "broad_loose",
     "Proportional: 1s >= half Marks (round up)": "proportional",
+    "Split: on fail 1s > Marks, on pass 4s > Marks": "split",
 }
 
 
-def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng, comp_method="standard"):
+def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng,
+             comp_method="standard", difficulty=0):
     """Run a single simulation config and return (marks, complication) arrays."""
     rolls = rng.integers(1, 7, size=(trials, n_dice))
     if is_safe:
@@ -31,13 +33,17 @@ def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng, comp_m
     if is_cursed:
         m -= np.sum(rolls == 1, axis=1)
     ones = np.sum(rolls == 1, axis=1)
+    fours = np.sum(rolls == 4, axis=1)
     if comp_method == "broad_strict":
-        comp = np.sum((rolls == 1) | (rolls == 4), axis=1) > m
+        comp = (ones + fours) > m
     elif comp_method == "broad_loose":
-        comp = np.sum((rolls == 1) | (rolls == 4), axis=1) >= m
+        comp = (ones + fours) >= m
     elif comp_method == "proportional":
         half_marks = np.ceil(np.maximum(m, 0) / 2).astype(np.int64)
         comp = ones >= half_marks
+    elif comp_method == "split":
+        passed = m >= difficulty
+        comp = np.where(passed, fours > m, ones > m)
     else:
         comp = ones > m
     return m, comp
@@ -110,7 +116,7 @@ st.subheader(f"{pool_size}d6 {posture_summary} vs DR {dr}")
 
 # ── Simulation (vectorised with NumPy) ───────────────────────────────────────
 rng = np.random.default_rng()
-marks, complication = simulate(pool_size, threshold, safe, blessed, cursed, n_trials, rng, comp_method)
+marks, complication = simulate(pool_size, threshold, safe, blessed, cursed, n_trials, rng, comp_method, dr)
 
 # Degrees of Success (positive) / Failure (negative)
 dos = marks - dr
@@ -216,7 +222,7 @@ def success_curve(thresh, is_safe, is_blessed, is_cursed):
     succ = np.empty(len(POOL_RANGE))
     comp = np.empty(len(POOL_RANGE))
     for i, n in enumerate(POOL_RANGE):
-        m, cc = simulate(n, thresh, is_safe, is_blessed, is_cursed, COMPARE_TRIALS, comp_rng, comp_method)
+        m, cc = simulate(n, thresh, is_safe, is_blessed, is_cursed, COMPARE_TRIALS, comp_rng, comp_method, dr)
         succ[i] = np.mean((m - dr) >= 0) * 100
         comp[i] = np.mean(cc) * 100
     return succ, comp
@@ -318,7 +324,7 @@ DR_RANGE = np.arange(0, 21)
 heat_data = np.empty((len(DR_RANGE), len(POOL_RANGE)))
 
 for j, n in enumerate(POOL_RANGE):
-    m, _ = simulate(n, threshold, safe, blessed, cursed, COMPARE_TRIALS, comp_rng, comp_method)
+    m, _ = simulate(n, threshold, safe, blessed, cursed, COMPARE_TRIALS, comp_rng, comp_method, dr)
     for i, d in enumerate(DR_RANGE):
         heat_data[i, j] = np.mean(m >= d) * 100
 
