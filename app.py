@@ -6,6 +6,25 @@ from statistics import mode, StatisticsError
 st.set_page_config(page_title="Dice Pool Simulator", page_icon="\U0001F3B2", layout="wide")
 st.title("\U0001F3B2 Dice Pool Probability Simulator")
 
+# ── Shared simulation helper ────────────────────────────────────────────────
+POOL_RANGE = np.arange(1, 31)
+COMPARE_TRIALS = 50_000
+
+
+def simulate(n_dice, thresh, is_safe, is_blessed, is_cursed, trials, rng):
+    """Run a single simulation config and return (marks, ones_count) arrays."""
+    rolls = rng.integers(1, 7, size=(trials, n_dice))
+    if is_safe:
+        mask = rolls == 1
+        rolls = np.where(mask, rng.integers(1, 7, size=(trials, n_dice)), rolls)
+    m = np.sum(rolls >= thresh, axis=1).astype(np.int64)
+    if is_blessed:
+        m += np.sum(rolls == 6, axis=1)
+    if is_cursed:
+        m -= np.sum(rolls == 1, axis=1)
+    ones = np.sum(rolls == 1, axis=1)
+    return m, ones
+
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Dice Pool Settings")
@@ -66,29 +85,7 @@ st.subheader(f"{pool_size}d6 {posture_summary} vs DR {dr}")
 
 # ── Simulation (vectorised with NumPy) ───────────────────────────────────────
 rng = np.random.default_rng()
-
-# Shape: (n_trials, pool_size)
-rolls = rng.integers(1, 7, size=(n_trials, pool_size))
-
-# Safe: reroll any 1s once
-if safe:
-    ones_mask = rolls == 1
-    rerolls = rng.integers(1, 7, size=(n_trials, pool_size))
-    rolls = np.where(ones_mask, rerolls, rolls)
-
-# Base marks: each die >= threshold scores 1 mark
-marks = np.sum(rolls >= threshold, axis=1).astype(np.int64)
-
-# Blessed: each 6 adds +1 extra mark (so a 6 = 2 marks total)
-if blessed:
-    marks += np.sum(rolls == 6, axis=1)
-
-# Cursed: each 1 cancels a mark (-1)
-if cursed:
-    marks -= np.sum(rolls == 1, axis=1)
-
-# Complications: more 1s in the final pool than total marks
-ones_count = np.sum(rolls == 1, axis=1)
+marks, ones_count = simulate(pool_size, threshold, safe, blessed, cursed, n_trials, rng)
 complication = ones_count > marks
 
 # Degrees of Success (positive) / Failure (negative)
@@ -176,3 +173,149 @@ st.table(
         ],
     }
 )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON CHARTS — these run independent sims across pool sizes
+# ══════════════════════════════════════════════════════════════════════════════
+st.divider()
+st.header("Posture & Advantage Comparisons")
+st.caption(
+    f"Each line simulates {COMPARE_TRIALS:,} trials per pool size (1–30) "
+    f"at DR {dr}. These charts are independent of your sidebar posture selection."
+)
+
+comp_rng = np.random.default_rng(42)  # fixed seed for stable comparisons
+
+
+def success_curve(thresh, is_safe, is_blessed, is_cursed):
+    """Return arrays of (success%, complication%) for pool sizes 1-30."""
+    succ = np.empty(len(POOL_RANGE))
+    comp = np.empty(len(POOL_RANGE))
+    for i, n in enumerate(POOL_RANGE):
+        m, ones = simulate(n, thresh, is_safe, is_blessed, is_cursed, COMPARE_TRIALS, comp_rng)
+        succ[i] = np.mean((m - dr) >= 0) * 100
+        comp[i] = np.mean(ones > m) * 100
+    return succ, comp
+
+
+# ── Posture comparison (using current advantage threshold) ───────────────────
+POSTURE_CONFIGS = {
+    "Normal":    (False, False, False),
+    "Safe":      (True,  False, False),
+    "Blessed":   (False, True,  False),
+    "Cursed":    (False, False, True),
+    "Unnatural": (False, True,  True),
+    "Safe + Blessed": (True, True, False),
+    "Safe + Unnatural": (True, True, True),
+}
+POSTURE_COLORS = {
+    "Normal": "#636EFA",
+    "Safe": "#00CC96",
+    "Blessed": "#FFA15A",
+    "Cursed": "#EF553B",
+    "Unnatural": "#AB63FA",
+    "Safe + Blessed": "#19D3F3",
+    "Safe + Unnatural": "#FF6692",
+}
+
+fig_posture_succ = go.Figure()
+fig_posture_comp = go.Figure()
+
+for name, (s, bl, cu) in POSTURE_CONFIGS.items():
+    sc, cc = success_curve(threshold, s, bl, cu)
+    fig_posture_succ.add_trace(go.Scatter(
+        x=POOL_RANGE, y=sc, mode="lines", name=name,
+        line=dict(color=POSTURE_COLORS[name]),
+        hovertemplate="%{x}d6: %{y:.2f}%<extra>" + name + "</extra>",
+    ))
+    fig_posture_comp.add_trace(go.Scatter(
+        x=POOL_RANGE, y=cc, mode="lines", name=name,
+        line=dict(color=POSTURE_COLORS[name]),
+        hovertemplate="%{x}d6: %{y:.2f}%<extra>" + name + "</extra>",
+    ))
+
+fig_posture_succ.update_layout(
+    title=f"Success % by Posture ({advantage_label} threshold, DR {dr})",
+    xaxis_title="Pool Size (d6)",
+    yaxis_title="Success Probability (%)",
+    hovermode="x unified",
+)
+fig_posture_succ.add_hline(y=50, line_dash="dot", line_color="grey", opacity=0.4)
+
+fig_posture_comp.update_layout(
+    title=f"Complication % by Posture ({advantage_label} threshold, DR {dr})",
+    xaxis_title="Pool Size (d6)",
+    yaxis_title="Complication Probability (%)",
+    hovermode="x unified",
+)
+
+st.subheader("Posture Comparison")
+st.plotly_chart(fig_posture_succ, use_container_width=True)
+st.plotly_chart(fig_posture_comp, use_container_width=True)
+
+# ── Advantage comparison (using current postures) ────────────────────────────
+ADV_LEVELS = {
+    "Double Disadvantage": 6,
+    "Disadvantage": 5,
+    "Normal": 4,
+    "Advantage": 3,
+    "Double Advantage": 2,
+}
+ADV_COLORS = {
+    "Double Disadvantage": "#EF553B",
+    "Disadvantage": "#FFA15A",
+    "Normal": "#636EFA",
+    "Advantage": "#00CC96",
+    "Double Advantage": "#19D3F3",
+}
+
+fig_adv = go.Figure()
+for name, thresh_val in ADV_LEVELS.items():
+    sc, _ = success_curve(thresh_val, safe, blessed, cursed)
+    fig_adv.add_trace(go.Scatter(
+        x=POOL_RANGE, y=sc, mode="lines", name=name,
+        line=dict(color=ADV_COLORS[name]),
+        hovertemplate="%{x}d6: %{y:.2f}%<extra>" + name + "</extra>",
+    ))
+
+fig_adv.update_layout(
+    title=f"Success % by Advantage Level (DR {dr}, {posture_summary} postures)",
+    xaxis_title="Pool Size (d6)",
+    yaxis_title="Success Probability (%)",
+    hovermode="x unified",
+)
+fig_adv.add_hline(y=50, line_dash="dot", line_color="grey", opacity=0.4)
+
+st.subheader("Advantage Level Comparison")
+st.plotly_chart(fig_adv, use_container_width=True)
+
+# ── Heatmap: Pool Size vs DR → Success % ────────────────────────────────────
+DR_RANGE = np.arange(0, 21)
+heat_data = np.empty((len(DR_RANGE), len(POOL_RANGE)))
+
+for j, n in enumerate(POOL_RANGE):
+    m, _ = simulate(n, threshold, safe, blessed, cursed, COMPARE_TRIALS, comp_rng)
+    for i, d in enumerate(DR_RANGE):
+        heat_data[i, j] = np.mean(m >= d) * 100
+
+fig_heat = go.Figure(go.Heatmap(
+    z=heat_data,
+    x=POOL_RANGE,
+    y=DR_RANGE,
+    colorscale="RdYlGn",
+    zmin=0,
+    zmax=100,
+    colorbar=dict(title="Success %"),
+    hovertemplate="Pool: %{x}d6<br>DR: %{y}<br>Success: %{z:.1f}%<extra></extra>",
+))
+fig_heat.update_layout(
+    title=f"Success Probability Heatmap ({posture_summary})",
+    xaxis_title="Pool Size (d6)",
+    yaxis_title="Difficulty Rating (DR)",
+    yaxis=dict(dtick=1),
+    xaxis=dict(dtick=1),
+)
+
+st.subheader("Pool Size vs Difficulty — Heatmap")
+st.caption("Hover to read exact probabilities. Uses your current posture settings.")
+st.plotly_chart(fig_heat, use_container_width=True)
