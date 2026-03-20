@@ -11,6 +11,9 @@ st.markdown(INFO_CSS, unsafe_allow_html=True)
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
+    st.page_link("app.py", label="Home")
+    st.page_link("pages/2_D10_Pool.py", label="D10 Pool")
+    st.divider()
     st.header("D6 Pool Settings")
     pool_size = st.slider("Dice Pool Size", 1, 30, 6)
     dr = st.slider("Difficulty Rating (DR)", 0, 20, 3)
