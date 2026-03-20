@@ -90,49 +90,55 @@ with st.sidebar:
 
     COMP_DESCRIPTIONS = {
         "standard": (
-            "Complication if you roll more 1s than marks. "
-            "On failure: very likely — few marks means even a couple 1s overwhelm them. "
-            "On success: rare — you need a lot of marks to succeed, so 1s almost never outnumber them. "
-            "Overall: complications mostly pile onto failures; successes are clean. Becomes very safe with large pools."
+            "Complication if you roll more 1s than marks.\n\n"
+            "**On failure:** Very likely — few marks means even a couple 1s overwhelm them.\n\n"
+            "**On success:** Rare — you need a lot of marks to succeed, so 1s almost never outnumber them.\n\n"
+            "**Overall:** Complications mostly pile onto failures; successes are clean. Becomes very safe with large pools."
         ),
         "standard_loose": (
-            "Complication if 1s are equal to or greater than marks. "
-            "On failure: very likely — ties now count, so even matching your few marks triggers it. "
-            "On success: uncommon but possible — a tight success where 1s match marks will complicate. "
-            "Overall: slightly more punishing than Standard across the board, especially on marginal rolls."
+            "Complication if 1s are equal to or greater than marks.\n\n"
+            "**On failure:** Very likely — ties now count, so even matching your few marks triggers it.\n\n"
+            "**On success:** Uncommon but possible — a tight success where 1s match marks will complicate.\n\n"
+            "**Overall:** Slightly more punishing than Standard across the board, especially on marginal rolls."
         ),
         "broad_strict": (
-            "Counts both 1s and 4s together. Complication if that total exceeds your marks. "
-            "On failure: almost guaranteed — 4s and 1s together easily outnumber your few marks. "
-            "On success: noticeably more common — 4s are your weakest hits, and they count against you here. "
-            "Overall: complications are frequent at all skill levels. Even strong rollers face them regularly."
+            "Counts both 1s and 4s together. Complication if that total exceeds your marks.\n\n"
+            "**On failure:** Almost guaranteed — 4s and 1s together easily outnumber your few marks.\n\n"
+            "**On success:** Noticeably more common — 4s are your weakest hits, and they count against you here.\n\n"
+            "**Overall:** Complications are frequent at all skill levels. Even strong rollers face them regularly."
         ),
         "broad_loose": (
-            "Counts both 1s and 4s together. Complication if that total equals or exceeds your marks. "
-            "On failure: nearly automatic. "
-            "On success: common — any roll heavy on 4s and 1s relative to marks triggers it. "
-            "Overall: the most aggressive method. Complications are a constant presence."
+            "Counts both 1s and 4s together. Complication if that total equals or exceeds your marks.\n\n"
+            "**On failure:** Nearly automatic.\n\n"
+            "**On success:** Common — any roll heavy on 4s and 1s relative to marks triggers it.\n\n"
+            "**Overall:** The most aggressive method. Complications are a constant presence."
         ),
         "proportional": (
-            "Complication if your 1s reach at least half your marks (rounded up). "
-            "On failure: likely — few marks means even one or two 1s can hit the threshold. "
-            "On success: scales down — more marks raises the bar (6 marks needs 3+ ones). "
-            "Overall: complications fade as proficiency grows. Easy table math — just halve your marks."
+            "Complication if your 1s reach at least half your marks (rounded up).\n\n"
+            "**On failure:** Likely — few marks means even one or two 1s can hit the threshold.\n\n"
+            "**On success:** Scales down — more marks raises the bar (6 marks needs 3+ ones).\n\n"
+            "**Overall:** Complications fade as proficiency grows. Easy table math — just halve your marks."
         ),
         "split": (
-            "Different rules for pass vs fail. On failure: complication if 1s outnumber marks (same as Standard). "
-            "On success: complication if 4s outnumber marks. Since every 4 already counts as a mark, "
-            "4s can never exceed total marks — so success complications essentially never happen. "
-            "Overall: failures get complicated, successes are always clean."
+            "Different rules for pass vs fail.\n\n"
+            "**On failure:** Complication if 1s outnumber marks (same as Standard).\n\n"
+            "**On success:** Complication if 4s outnumber marks. Since every 4 already counts as a mark, "
+            "4s can never exceed total marks — so success complications essentially never happen.\n\n"
+            "**Overall:** Failures get complicated, successes are always clean."
         ),
         "split_dos": (
-            "Different rules for pass vs fail. On failure: complication if 1s outnumber marks (same as Standard). "
-            "On success: complication if 4s outnumber your Degrees of Success (marks minus DR). "
-            "A narrow win loaded with 4s will trigger, but a dominant success won't. "
-            "Overall: tight victories feel messy, dominant victories feel clean, failures punish bad luck."
+            "Different rules for pass vs fail.\n\n"
+            "**On failure:** Complication if 1s outnumber marks (same as Standard).\n\n"
+            "**On success:** Complication if 4s outnumber your Degrees of Success (marks minus DR). "
+            "A narrow win loaded with 4s will trigger, but a dominant success won't.\n\n"
+            "**Overall:** Tight victories feel messy, dominant victories feel clean, failures punish bad luck."
         ),
     }
-    st.caption(COMP_DESCRIPTIONS[comp_method])
+    st.markdown(
+        "<style>div[data-testid='stAlert'] p { font-size: 0.78rem; }</style>",
+        unsafe_allow_html=True,
+    )
+    st.info(COMP_DESCRIPTIONS[comp_method])
 
     st.header("Simulation")
     n_trials = st.slider("Number of trials", 100_000, 1_000_000, 100_000, step=100_000)
